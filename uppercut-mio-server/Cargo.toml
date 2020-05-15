@@ -1,0 +1,12 @@
+[package]
+name = "uppercut-mio-server"
+version = "0.1.0"
+authors = ["sergey-melnychuk"]
+edition = "2018"
+
+[dependencies]
+uppercut = "0.1.0"
+
+[dependencies.mio]
+version = "0.7.0"
+features = ["os-poll", "tcp"]
