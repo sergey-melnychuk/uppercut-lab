@@ -1,3 +1,7 @@
+extern crate log;
+extern crate env_logger;
+use log::debug;
+
 use std::error::Error;
 use std::io::{Read, Write};
 use std::time::Duration;
@@ -6,6 +10,10 @@ use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Token};
 
 use uppercut::api::{AnyActor, Envelope, AnySender};
+
+use parser_combinators::stream::ByteStream;
+use crate::protocol::process;
+
 
 pub struct Start;
 
@@ -49,7 +57,7 @@ impl AnyActor for Listener {
                     Token(0) => {
                         loop {
                             if let Ok((mut socket, _)) = self.socket.accept() {
-                                //println!("connected: {}", self.counter + 1);
+                                debug!("connected: {}", self.counter + 1);
                                 self.counter += 1;
                                 let token = Token(self.counter);
                                 self.poll.registry()
@@ -83,29 +91,44 @@ impl AnyActor for Listener {
 
 struct Connection {
     socket: Option<TcpStream>,
+    is_open: bool,
     keep_alive: bool,
-    buffer: [u8; 1024],
-    buffer_used: usize,
-    recv_bytes: usize,
+    recv_buf: ByteStream,
+    send_buf: ByteStream,
     can_read: bool,
     can_write: bool,
+    buffer: [u8; 1024],
+}
+
+impl Connection {
+    fn keep_open(&mut self, sender: &mut dyn AnySender) -> bool {
+        if !self.is_open {
+            if !self.keep_alive {
+                self.is_open = true;
+            } else {
+                self.socket = None;
+                let me = sender.myself();
+                sender.stop(&me);
+            }
+        }
+        self.is_open
+    }
 }
 
 impl Default for Connection {
     fn default() -> Self {
         Connection {
             socket: None,
+            is_open: true,
             keep_alive: true,
-            buffer: [0 as u8; 1024],
-            buffer_used: 0,
-            recv_bytes: 0,
+            recv_buf: ByteStream::with_capacity(1024),
+            send_buf: ByteStream::with_capacity(1024),
             can_read: false,
             can_write: false,
+            buffer: [0 as u8; 1024],
         }
     }
 }
-
-static RESPONSE: &str = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: keep-alive\r\nContent-Length: 6\r\n\r\nhello\n";
 
 impl AnyActor for Connection {
     fn receive(&mut self, mut envelope: Envelope, sender: &mut dyn AnySender) {
@@ -116,58 +139,48 @@ impl AnyActor for Connection {
             let me = sender.myself();
             sender.send(&me, envelope);
         } else if let Some(work) = envelope.message.downcast_ref::<Work>() {
-            //println!("work: {:?}", work);
+            debug!("work: {:?}", work);
             self.can_read = work.is_readable;
             self.can_write = self.can_write || work.is_writable;
             if self.can_read {
-                //println!("connection {} is readable", sender.me());
-                match self.socket.as_ref().unwrap().read(&mut self.buffer[self.buffer_used..]) {
+                debug!("connection {} is readable", sender.me());
+                match self.socket.as_ref().unwrap().read(&mut self.buffer[..]) {
                     Ok(0) | Err(_) => {
-                        //println!("connection {} closed (read 0 bytes)", sender.me());
-                        if !self.keep_alive {
-                            self.socket = None;
-                            let me = sender.myself();
-                            sender.stop(&me);
-                        }
-                        return
+                        debug!("connection {} closed (read 0 bytes)", sender.me());
+                        self.is_open = false;
                     },
                     Ok(n) => {
-                        //println!("connection {} read {} bytes", sender.me(), n);
-                        self.recv_bytes += n;
-                        self.buffer_used += n;
+                        debug!("connection {} read {} bytes", sender.me(), n);
+                        self.recv_buf.put(&self.buffer[0..n]);
                     }
                 }
             }
 
-            let rnrn = self.buffer.windows(4)
-                .find(|w| (w[0] == b'\r') && (w[1] == b'\n') && (w[2] == b'\r') && (w[3] == b'\n'))
-                .is_some();
-
-            if rnrn {
-                &self.buffer[0..RESPONSE.len()].copy_from_slice(RESPONSE.as_bytes());
-                self.buffer_used = RESPONSE.len();
+            if !self.keep_open(sender) {
+                return;
             }
 
-            if self.can_write {
-                //println!("connection {} is writable", sender.me());
-                if self.buffer_used > 0 {
-                    match self.socket.as_ref().unwrap().write_all(&self.buffer[0..self.buffer_used]) {
+            if self.recv_buf.len() > 0 {
+                process(&mut self.recv_buf, &mut self.send_buf, &mut self.is_open);
+            }
+
+            if self.can_write && self.send_buf.len() > 0 {
+                debug!("connection {} is writable", sender.me());
+                if self.send_buf.len() > 0 {
+                    match self.socket.as_ref().unwrap().write_all(self.send_buf.as_ref()) {
                         Ok(_) => {
-                            //println!("connection {} written {} bytes", sender.me(), self.buffer_used);
-                            self.buffer_used = 0;
+                            debug!("connection {} written {} bytes", sender.me(), self.send_buf.len());
+                            self.send_buf.clear();
                         },
                         _ => {
-                            //println!("connection {} closed (write failed)", sender.me());
-                            if !self.keep_alive {
-                                self.socket = None;
-                                let me = sender.myself();
-                                sender.stop(&me);
-                            }
-                            return
+                            debug!("connection {} closed (write failed)", sender.me());
+                            self.is_open = false;
                         }
                     }
                 }
             }
+
+            self.keep_open(sender);
         }
     }
 }

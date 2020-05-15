@@ -5,10 +5,13 @@ use uppercut::core::System;
 use uppercut::config::Config;
 use uppercut::pool::ThreadPool;
 
+mod protocol;
 mod server;
 use crate::server::{Listener, Start};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+
     let cfg = Config::default();
     let pool = ThreadPool::for_config(&cfg);
     let sys = System::new(cfg);
