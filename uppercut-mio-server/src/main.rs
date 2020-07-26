@@ -7,6 +7,8 @@ use uppercut::pool::ThreadPool;
 
 mod protocol;
 mod server;
+mod client;
+
 use crate::server::{Listener, Start};
 
 fn main() -> Result<(), Box<dyn Error>> {
