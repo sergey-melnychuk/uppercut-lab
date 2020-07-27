@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::net::SocketAddr;
-use std::io::{Read, Write};
+use std::io::{Read, Write, ErrorKind};
 use std::time::Duration;
 
 use mio::{Poll, Events, Token, Interest};
@@ -32,30 +32,41 @@ impl Client {
         self.counter += 1;
         self.poll.registry().register(&mut socket, Token(self.counter), Interest::WRITABLE).unwrap();
 
-        let connection = Connection {
-            socket: Some(socket),
-            is_open: true,
-            keep_alive: true,
-            recv_buf: ByteStream::with_capacity(1024),
-            send_buf: ByteStream::with_capacity(1024),
-            can_read: false,
-            can_write: false,
-            buffer: [0 as u8; 1024],
-        };
-
-        Ok(connection)
+        Ok(Connection::connected(socket, 32 * 1024))
     }
 }
 
 struct Connection {
     socket: Option<TcpStream>,
     is_open: bool,
-    keep_alive: bool,
     recv_buf: ByteStream,
     send_buf: ByteStream,
-    can_read: bool,
-    can_write: bool,
-    buffer: [u8; 1024],
+}
+
+impl Default for Connection {
+    fn default() -> Self {
+        Self::empty(1024)
+    }
+}
+
+impl Connection {
+    fn empty(buffer_size: usize) -> Self {
+        Self {
+            socket: None,
+            is_open: false,
+            recv_buf: ByteStream::with_capacity(buffer_size),
+            send_buf: ByteStream::with_capacity(buffer_size),
+        }
+    }
+
+    fn connected(socket: TcpStream, buffer_size: usize) -> Self {
+        Self {
+            socket: Some(socket),
+            is_open: true,
+            recv_buf: ByteStream::with_capacity(buffer_size),
+            send_buf: ByteStream::with_capacity(buffer_size),
+        }
+    }
 }
 
 impl Connection {
@@ -71,17 +82,22 @@ impl Connection {
     }
 
     fn recv(&mut self) -> usize {
-        let mut buf = [0 as u8; 1024];
-        match self.socket.as_ref().unwrap().read(&mut buf) {
-            Ok(0) | Err(_) => {
-                self.is_open = false;
-                0
+        let mut buf = [0u8; 1024];
+        let mut bytes_received: usize = 0;
+        loop {
+            match self.socket.as_ref().unwrap().read(&mut buf) {
+                Ok(n) if n > 0 => {
+                    self.recv_buf.put(&buf[0..n]);
+                    bytes_received += n;
+                },
+                Err(e) if e.kind() == ErrorKind::WouldBlock => break,
+                Ok(_) | Err(_) => {
+                    self.is_open = false;
+                    break
+                }
             }
-            Ok(n) => {
-                self.recv_buf.put(&buf[0..n]);
-                n
-            },
         }
+        bytes_received
     }
 }
 
@@ -96,16 +112,8 @@ pub fn run() {
         client.poll.poll(&mut client.events, None).unwrap();
 
         for event in &client.events {
-            println!("token={}: r={} w={} rc={} wc={}",
-                     event.token().0,
-                     event.is_readable(),
-                     event.is_writable(),
-                     event.is_read_closed(),
-                     event.is_write_closed());
-
             if event.is_readable() {
                 let _ = connection.recv();
-                println!("rcvd: '{}'", String::from_utf8_lossy(connection.recv_buf.as_ref()));
                 connection.is_open = !event.is_read_closed();
             }
 
