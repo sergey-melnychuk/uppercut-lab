@@ -1,12 +1,12 @@
 use std::error::Error;
+use std::net::SocketAddr;
+use std::io::{Read, Write};
+use std::time::Duration;
 
 use mio::{Poll, Events, Token, Interest};
 use mio::net::TcpStream;
 
 use parser_combinators::stream::ByteStream;
-use std::net::SocketAddr;
-use std::io::{Read, Write};
-use std::time::Duration;
 
 pub struct Client {
     poll: Poll,
@@ -59,8 +59,15 @@ struct Connection {
 }
 
 impl Connection {
-    fn send(&mut self, payload: &[u8]) {
-        self.socket.as_ref().unwrap().write_all(payload).unwrap();
+    fn send(&mut self) {
+        match self.socket.as_ref().unwrap().write_all(self.send_buf.as_ref()) {
+            Ok(_) => {
+                self.send_buf.clear();
+            },
+            Err(_) => {
+                self.is_open = false;
+            }
+        }
     }
 
     fn recv(&mut self) -> usize {
@@ -71,7 +78,7 @@ impl Connection {
                 0
             }
             Ok(n) => {
-                self.recv_buf.put(&mut buf);
+                self.recv_buf.put(&buf[0..n]);
                 n
             },
         }
@@ -83,17 +90,43 @@ pub fn run() {
 
     let mut connection = client.connect("127.0.0.1:9000".parse().unwrap()).unwrap();
 
-    loop {
-        client.poll.poll(&mut client.events, Some(Duration::from_secs(1))).unwrap();
+    connection.send_buf.put(b"hello there!");
 
-        let n = client.events.iter().count();
-        println!("events: {}", n);
+    'outer: loop {
+        client.poll.poll(&mut client.events, None).unwrap();
 
-        break;
+        for event in &client.events {
+            println!("token={}: r={} w={} rc={} wc={}",
+                     event.token().0,
+                     event.is_readable(),
+                     event.is_writable(),
+                     event.is_read_closed(),
+                     event.is_write_closed());
+
+            if event.is_readable() {
+                let _ = connection.recv();
+                println!("rcvd: '{}'", String::from_utf8_lossy(connection.recv_buf.as_ref()));
+                connection.is_open = !event.is_read_closed();
+            }
+
+            if event.is_writable() {
+                connection.send();
+                connection.send_buf.pull();
+                connection.is_open = !event.is_write_closed();
+            }
+
+            if connection.is_open {
+                client.poll.registry()
+                    .reregister(connection.socket.as_mut().unwrap(),
+                                Token(0),
+                                Interest::READABLE.add(Interest::READABLE)).unwrap();
+            } else {
+                println!("connection is closed");
+                break 'outer;
+            }
+        }
     }
 
-    connection.send(b"hello there!");
-
-    let received = connection.recv();
-    println!("{}", received);
+    let _ = connection.socket.take();
+    println!("done");
 }
