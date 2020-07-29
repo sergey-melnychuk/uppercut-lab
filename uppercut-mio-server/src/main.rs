@@ -7,7 +7,6 @@ use uppercut::pool::ThreadPool;
 
 mod protocol;
 mod server;
-mod client;
 
 use crate::server::{Listener, Start};
 
