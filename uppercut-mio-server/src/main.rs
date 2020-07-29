@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let cfg = Config::default();
     let pool = ThreadPool::for_config(&cfg);
-    let sys = System::new(cfg);
+    let sys = System::new(&cfg);
     let run = sys.run(&pool).unwrap();
 
     let listener = Listener::listen("0.0.0.0:9000")?;

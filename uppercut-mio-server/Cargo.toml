@@ -5,7 +5,7 @@ authors = ["sergey-melnychuk"]
 edition = "2018"
 
 [dependencies]
-uppercut = "0.1.1"
+uppercut = "0.1.2"
 parser-combinators = { git = "https://github.com/sergey-melnychuk/rust-parser-combinators", tag = "0.1.4" }
 log = "0.4.8"
 env_logger = "0.7.1"
