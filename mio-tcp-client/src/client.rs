@@ -37,9 +37,10 @@ impl Client {
         }
     }
 
-    pub fn connect(&mut self, addr: SocketAddr) -> Result<usize, Box<dyn Error>> {
+    pub fn connect(&mut self, target: &str) -> Result<usize, Box<dyn Error>> {
         self.counter += 1;
 
+        let addr: SocketAddr = target.parse()?;
         let mut socket = TcpStream::connect(addr)?;
         let id = self.counter;
         self.poll.registry().register(&mut socket, Token(id), Interest::WRITABLE).unwrap();

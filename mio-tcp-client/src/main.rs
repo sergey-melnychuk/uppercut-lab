@@ -15,7 +15,7 @@ fn main() {
     let target = "127.0.0.1:9000"; // nc -l 9000
     // let target = "216.58.215.78:80"; // ping google.com
 
-    let _id = client.connect(target.parse().unwrap()).unwrap();
+    let _id = client.connect(target).unwrap();
 
     // client.put(target, b"hello there!");
     client.put(target, b"GET / HTTP/1.1\r\n\r\n");
