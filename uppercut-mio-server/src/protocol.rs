@@ -2,9 +2,9 @@ extern crate log;
 extern crate env_logger;
 use log::debug;
 
-use parser_combinators::stream::ByteStream;
-use parser_combinators::http::{parse_http_request, Request, Header, Response, as_string};
-use parser_combinators::ws::{parse_frame, decode_frame_body, Frame};
+use parsed::stream::ByteStream;
+use parsed::http::{parse_http_request, Request, Header, Response, as_string};
+use parsed::ws::{parse_frame, decode_frame_body, Frame};
 use sha1::{Sha1, Digest};
 
 fn get_header<'a>(headers: &'a Vec<Header>, name: &String) -> Option<&'a String> {

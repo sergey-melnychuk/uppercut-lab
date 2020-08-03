@@ -2,7 +2,7 @@ use std::error::Error;
 
 use uppercut::api::Envelope;
 use uppercut::core::System;
-use uppercut::config::Config;
+use uppercut::config::{Config, SchedulerConfig};
 use uppercut::pool::ThreadPool;
 
 mod protocol;
@@ -12,15 +12,18 @@ use crate::server::{Listener, Start};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+    let cores = num_cpus::get();
 
-    let cfg = Config::default();
+    let cfg = Config::new(
+        SchedulerConfig::with_total_threads(cores + 2),
+        Default::default());
     let pool = ThreadPool::for_config(&cfg);
-    let sys = System::new(&cfg);
+    let sys = System::new("server", &cfg);
     let run = sys.run(&pool).unwrap();
 
     let listener = Listener::listen("0.0.0.0:9000")?;
     run.spawn("server", move || Box::new(listener));
-    run.send("server", Envelope::of(Start, ""));
+    run.send("server", Envelope::of(Start));
 
     std::thread::park();
     Ok(())
