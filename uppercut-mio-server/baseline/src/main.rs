@@ -1,6 +1,6 @@
 // https://github.com/actix/examples/blob/master/hello-world/src/main.rs
 
-use actix_web::{web, App, HttpRequest, HttpServer};
+use actix_web::{web, App, HttpServer};
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -8,7 +8,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     HttpServer::new(|| App::new().service(web::resource("/").to(|| async { "hello\n" })))
-        .bind("127.0.0.1:8080")?
+        .bind("0.0.0.0:9000")?
         .run()
         .await
 }
