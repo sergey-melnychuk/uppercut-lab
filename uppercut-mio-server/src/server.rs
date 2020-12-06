@@ -4,7 +4,6 @@ use log::debug;
 
 use std::error::Error;
 use std::io::{Read, Write};
-use std::time::Duration;
 
 use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Token};
@@ -51,7 +50,7 @@ impl Listener {
 impl AnyActor for Listener {
     fn receive(&mut self, envelope: Envelope, sender: &mut dyn AnySender) {
         if let Some(_) = envelope.message.downcast_ref::<Loop>() {
-            self.poll.poll(&mut self.events, Some(Duration::from_millis(1))).unwrap();
+            self.poll.poll(&mut self.events, None).unwrap();
             for event in self.events.iter() {
                 match event.token() {
                     Token(0) => {
