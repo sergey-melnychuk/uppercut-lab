@@ -10,9 +10,11 @@ mod server;
 
 use crate::server::{Listener, Start};
 
+const MAX_CORES: usize = 4;
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-    let cores = num_cpus::get();
+    let cores = std::cmp::min(MAX_CORES, num_cpus::get());
 
     let cfg = Config::new(
         SchedulerConfig::with_total_threads(cores + 2),
