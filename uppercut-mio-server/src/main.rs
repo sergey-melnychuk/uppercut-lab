@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         SchedulerConfig::with_total_threads(cores + 2),
         Default::default());
     let pool = ThreadPool::for_config(&cfg);
-    let sys = System::new("server", &cfg);
+    let sys = System::new("server", "localhost", &cfg);
     let run = sys.run(&pool).unwrap();
 
     let listener = Listener::listen("0.0.0.0:9000")?;

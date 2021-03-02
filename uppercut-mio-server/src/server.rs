@@ -14,9 +14,13 @@ use parsed::stream::ByteStream;
 use crate::protocol::process;
 
 
+#[derive(Debug)]
 pub struct Start;
 
+#[derive(Debug)]
 struct Loop;
+
+#[derive(Debug)]
 struct Connect { socket: Option<TcpStream>, keep_alive: bool }
 
 #[derive(Debug)]
