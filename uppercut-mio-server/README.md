@@ -12,6 +12,37 @@ Dual-Core Intel Core i5 1,4 GHz
 Memory:	4 GB
 ```
 
+#### Setup
+
+Cargo ([rustup](https://rustup.rs/)):
+
+```
+sudo apt update && sudo apt install build-essential
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+WRK ([link](https://github.com/wg/wrk/wiki/Installing-wrk-on-Linux)):
+
+```shell
+sudo apt-get install build-essential libssl-dev git unzip -y
+git clone https://github.com/wg/wrk.git wrk
+cd wrk
+make
+sudo cp wrk /usr/local/bin
+```
+
+Build:
+
+```shell
+git clone https://github.com/sergey-melnychuk/uppercut-lab
+cd uppercut-lab/uppercut-mio-server
+caro build --release
+cd baseline
+cargo build --release
+```
+
+Run: `target/release/uppercut-mio-server` or `baseline/target/release/hello-world`.
+
 #### Command
 
 `wrk -d 10s -c 128 -t 4 http://127.0.0.1:9000/`
