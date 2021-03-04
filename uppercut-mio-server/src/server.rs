@@ -4,6 +4,7 @@ use log::debug;
 
 use std::error::Error;
 use std::io::{Read, Write};
+use std::fmt::{Debug, Formatter};
 
 use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Token};
@@ -20,8 +21,21 @@ pub struct Start;
 #[derive(Debug)]
 struct Loop;
 
-#[derive(Debug)]
-struct Connect { socket: Option<TcpStream>, keep_alive: bool }
+struct Connect {
+    socket: Option<TcpStream>,
+    keep_alive: bool,
+    handler: fn(&mut ByteStream, &mut ByteStream),
+}
+
+impl Debug for Connect {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connect")
+            .field("socket", &self.socket)
+            .field("keep_alive", &self.keep_alive)
+            .field("handler", &"<function>")
+            .finish()
+    }
+}
 
 #[derive(Debug)]
 struct Work { is_readable: bool, is_writable: bool }
@@ -69,7 +83,11 @@ impl AnyActor for Listener {
                                     .unwrap();
                                 let tag = format!("{}", self.counter);
                                 sender.spawn(&tag, || Box::new(Connection::default()));
-                                let connect = Connect { socket: Some(socket), keep_alive: true };
+                                let connect = Connect {
+                                    socket: Some(socket),
+                                    keep_alive: true,
+                                    handler: process,
+                                };
                                 sender.send(&tag, Envelope::of(connect));
                             } else {
                                 break
@@ -100,7 +118,7 @@ struct Connection {
     send_buf: ByteStream,
     can_read: bool,
     can_write: bool,
-    buffer: [u8; 1024],
+    handler: Option<fn(&mut ByteStream, &mut ByteStream)>,
 }
 
 impl Connection {
@@ -128,7 +146,7 @@ impl Default for Connection {
             send_buf: ByteStream::with_capacity(1024),
             can_read: false,
             can_write: false,
-            buffer: [0 as u8; 1024],
+            handler: None,
         }
     }
 }
@@ -138,23 +156,25 @@ impl AnyActor for Connection {
         if let Some(connect) = envelope.message.downcast_mut::<Connect>() {
             self.socket = connect.socket.take();
             self.keep_alive = connect.keep_alive;
+            self.handler = Some(connect.handler);
         } else if self.socket.is_none() {
             let me = sender.myself();
             sender.send(&me, envelope);
         } else if let Some(work) = envelope.message.downcast_ref::<Work>() {
+            let mut buffer = [0u8; 1024];
             debug!("work: {:?}", work);
             self.can_read = work.is_readable;
             self.can_write = self.can_write || work.is_writable;
             if self.can_read {
                 debug!("connection {} is readable", sender.me());
-                match self.socket.as_ref().unwrap().read(&mut self.buffer[..]) {
+                match self.socket.as_ref().unwrap().read(&mut buffer[..]) {
                     Ok(0) | Err(_) => {
                         debug!("connection {} closed (read 0 bytes)", sender.me());
                         self.is_open = false;
                     },
                     Ok(n) => {
                         debug!("connection {} read {} bytes", sender.me(), n);
-                        self.recv_buf.put(&self.buffer[0..n]);
+                        self.recv_buf.put(&buffer[0..n]);
                     }
                 }
             }
@@ -164,7 +184,7 @@ impl AnyActor for Connection {
             }
 
             if self.recv_buf.len() > 0 {
-                process(&mut self.recv_buf, &mut self.send_buf, &mut self.is_open);
+                self.handler.as_ref().unwrap()(&mut self.recv_buf, &mut self.send_buf);
             }
 
             if self.can_write && self.send_buf.len() > 0 {
