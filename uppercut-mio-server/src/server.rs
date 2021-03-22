@@ -116,8 +116,8 @@ struct Connection {
     keep_alive: bool,
     recv_buf: ByteStream,
     send_buf: ByteStream,
-    can_read: bool,
-    can_write: bool,
+    can_recv: bool,
+    can_send: bool,
     handler: Option<fn(&mut ByteStream, &mut ByteStream)>,
 }
 
@@ -144,8 +144,8 @@ impl Default for Connection {
             keep_alive: true,
             recv_buf: ByteStream::with_capacity(1024),
             send_buf: ByteStream::with_capacity(1024),
-            can_read: false,
-            can_write: false,
+            can_recv: false,
+            can_send: false,
             handler: None,
         }
     }
@@ -163,9 +163,9 @@ impl AnyActor for Connection {
         } else if let Some(work) = envelope.message.downcast_ref::<Work>() {
             let mut buffer = [0u8; 1024];
             debug!("work: {:?}", work);
-            self.can_read = work.is_readable;
-            self.can_write = self.can_write || work.is_writable;
-            if self.can_read {
+            self.can_recv = work.is_readable;
+            self.can_send = self.can_send || work.is_writable;
+            if self.can_recv {
                 debug!("connection {} is readable", sender.me());
                 match self.socket.as_ref().unwrap().read(&mut buffer[..]) {
                     Ok(0) | Err(_) => {
@@ -187,18 +187,16 @@ impl AnyActor for Connection {
                 self.handler.as_ref().unwrap()(&mut self.recv_buf, &mut self.send_buf);
             }
 
-            if self.can_write && self.send_buf.len() > 0 {
-                debug!("connection {} is writable", sender.me());
-                if self.send_buf.len() > 0 {
-                    match self.socket.as_ref().unwrap().write_all(self.send_buf.as_ref()) {
-                        Ok(_) => {
-                            debug!("connection {} written {} bytes", sender.me(), self.send_buf.len());
-                            self.send_buf.clear();
-                        },
-                        _ => {
-                            debug!("connection {} closed (write failed)", sender.me());
-                            self.is_open = false;
-                        }
+            if self.can_send && self.send_buf.len() > 0 {
+                 debug!("connection {} is writable", sender.me());
+                match self.socket.as_ref().unwrap().write_all(self.send_buf.as_ref()) {
+                    Ok(_) => {
+                        debug!("connection {} written {} bytes", sender.me(), self.send_buf.len());
+                        self.send_buf.clear();
+                    },
+                    _ => {
+                        debug!("connection {} closed (write failed)", sender.me());
+                        self.is_open = false;
                     }
                 }
             }
