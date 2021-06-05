@@ -1,11 +1,11 @@
-# https://github.com/actix/examples/blob/master/hello-world/Cargo.toml
 [package]
-name = "hello-world"
-version = "2.0.0"
-authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+name = "baseline-actix"
+version = "0.0.0"
 edition = "2018"
 
 [dependencies]
-actix-web = "2.0.0"
-actix-rt = "1.0.0"
-env_logger = "0.7"
+actix-web = "3"
+#env_logger = "0.8"
+
+[dev-dependencies]
+actix-rt = "1"
