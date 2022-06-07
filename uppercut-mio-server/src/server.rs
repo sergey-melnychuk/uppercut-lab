@@ -82,7 +82,7 @@ impl AnyActor for Listener {
                                               Interest::READABLE | Interest::WRITABLE)
                                     .unwrap();
                                 let tag = format!("{}", self.counter);
-                                sender.spawn(&tag, || Box::new(Connection::default()));
+                                sender.spawn(&tag, Box::new(|| Box::new(Connection::default())));
                                 let connect = Connect {
                                     socket: Some(socket),
                                     keep_alive: true,
@@ -101,11 +101,9 @@ impl AnyActor for Listener {
                     }
                 }
             }
-            let me = sender.myself();
-            sender.send(&me, Envelope::of(Loop));
+            sender.send(sender.me(), Envelope::of(Loop));
         } else if let Some(_) = envelope.message.downcast_ref::<Start>() {
-            let me = sender.myself();
-            sender.send(&me, Envelope::of(Loop));
+            sender.send(sender.me(), Envelope::of(Loop));
         }
     }
 }
@@ -128,8 +126,7 @@ impl Connection {
                 self.is_open = true;
             } else {
                 self.socket = None;
-                let me = sender.myself();
-                sender.stop(&me);
+                sender.stop(sender.me());
             }
         }
         self.is_open
@@ -158,8 +155,7 @@ impl AnyActor for Connection {
             self.keep_alive = connect.keep_alive;
             self.handler = Some(connect.handler);
         } else if self.socket.is_none() {
-            let me = sender.myself();
-            sender.send(&me, envelope);
+            sender.send(sender.me(), envelope);
         } else if let Some(work) = envelope.message.downcast_ref::<Work>() {
             let mut buffer = [0u8; 1024];
             debug!("work: {:?}", work);
