@@ -7,9 +7,7 @@ Simple TCP server implementation with [Uppercut](https://github.com/sergey-melny
 #### Hardware
 
 ```
-Dual-Core Intel Core i5 1,4 GHz
-1 Processor x 2 Cores x (Hyper-Threading)
-Memory:	4 GB
+Intel Core i7 2.6 GHz (4-core) / 16 GB RAM
 ```
 
 #### Setup
@@ -47,7 +45,8 @@ caro build --release
 
 Best of 3 runs for backend:
 
-actix-web
+##### actix-web
+
 ```
 Running 1m test @ http://127.0.0.1:9000/
   4 threads and 128 connections
@@ -59,7 +58,8 @@ Requests/sec: 137313.75
 Transfer/sec: 15.98MB
 ```
 
-uppercut-mio-server
+##### uppercut-mio-server
+
 ```
 Running 1m test @ http://127.0.0.1:9000/
   4 threads and 128 connections
@@ -71,7 +71,8 @@ Requests/sec: 130383.46
 Transfer/sec: 15.42MB
 ```
 
-tide
+##### tide
+
 ```
 Running 1m test @ http://127.0.0.1:9000/
   4 threads and 128 connections
@@ -82,5 +83,4 @@ Running 1m test @ http://127.0.0.1:9000/
 Requests/sec: 49691.66
 Transfer/sec: 5.73MB
 ```
-
 
