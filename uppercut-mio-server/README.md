@@ -6,81 +6,93 @@ Simple TCP server implementation with [Uppercut](https://github.com/sergey-melny
 
 #### Hardware
 
-```
+##### Local
+
 Intel Core i7 2.6 GHz (4-core) / 16 GB RAM
-```
+
+##### Cloud
+
+Client: 2 core / 8 GB RAM
+Server: 8 core / 32 GM RAM
 
 #### Setup
 
-Cargo ([rustup](https://rustup.rs/)):
+Server:
 
 ```
-sudo apt update && sudo apt install build-essential
+sudo apt update && sudo apt install -y build-essential
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+git clone https://github.com/sergey-melnychuk/uppercut-lab.git
+cd uppercut-lab/uppercut-mio-server
+cargo build --release
+
+./target/release/uppercut-mio-server
 ```
 
-WRK ([link](https://github.com/wg/wrk/wiki/Installing-wrk-on-Linux)):
+Client:
 
 ```shell
-sudo apt-get install build-essential libssl-dev git unzip -y
-git clone https://github.com/wg/wrk.git wrk
+sudo apt install build-essential libssl-dev git unzip -y
+git clone https://github.com/wg/wrk.git
 cd wrk
 make
 sudo cp wrk /usr/local/bin
+
+wrk -d 1m -c 128 -t 4 http://$HOST:9000/
 ```
 
-Build:
-
-```shell
-git clone https://github.com/sergey-melnychuk/uppercut-lab
-cd uppercut-lab/uppercut-mio-server
-caro build --release
+```
+sudo apt install -y linux-tools-common linux-tools-generic linux-tools-`uname -r`
+cargo install flamegraph
 ```
 
-#### Command
-
-`wrk -d 10s -c 128 -t 4 http://127.0.0.1:9000/`
+```
+# Cargo.toml
+[profile.release]
+debug = true
+```
 
 #### Results
 
-Best of 3 runs for backend:
-
-##### actix-web
-
-```
-Running 1m test @ http://127.0.0.1:9000/
-  4 threads and 128 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     0.93ms  149.64us  16.64ms   92.30%
-    Req/Sec    34.50k     3.38k   41.80k    49.46%
-  8239354 requests in 1.00m, 0.94GB read
-Requests/sec: 137313.75
-Transfer/sec: 15.98MB
-```
+Best of 3 runs
 
 ##### uppercut-mio-server
 
 ```
-Running 1m test @ http://127.0.0.1:9000/
+Running 1m test @ http://64.225.96.110:9000/
   4 threads and 128 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     0.86ms  387.64us  17.62ms   89.88%
-    Req/Sec    32.77k     3.07k   39.14k    72.92%
-  7825935 requests in 1.00m, 0.90GB read
-Requests/sec: 130383.46
-Transfer/sec: 15.42MB
+    Latency     1.65ms    2.49ms  28.93ms   83.39%
+    Req/Sec    32.82k     7.27k   74.61k    57.73%
+  7841381 requests in 1.00m, 0.91GB read
+Requests/sec: 130527.84
+Transfer/sec: 15.44MB
+```
+
+##### actix-web
+
+```
+Running 1m test @ http://64.225.96.110:9000/
+  4 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.66ms    2.49ms  25.51ms   83.42%
+    Req/Sec    31.49k     8.25k   53.36k    54.50%
+  7522556 requests in 1.00m, 0.85GB read
+Requests/sec: 125200.09
+Transfer/sec: 14.57MB
 ```
 
 ##### tide
 
 ```
-Running 1m test @ http://127.0.0.1:9000/
+Running 1m test @ http://64.225.96.110:9000/
   4 threads and 128 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    11.33ms   14.58ms  59.90ms   79.29%
-    Req/Sec    12.49k     1.55k   18.67k    70.38%
-  2983737 requests in 1.00m, 344.32MB read
-Requests/sec: 49691.66
-Transfer/sec: 5.73MB
+    Latency    11.12ms   14.32ms  56.24ms   78.34%
+    Req/Sec    12.34k     1.52k   16.47k    65.75%
+  2947430 requests in 1.00m, 340.13MB read
+Requests/sec: 49109.17
+Transfer/sec: 5.67MB
 ```
-

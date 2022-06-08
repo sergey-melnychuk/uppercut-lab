@@ -4,6 +4,9 @@ version = "0.2.0"
 authors = ["sergey-melnychuk"]
 edition = "2018"
 
+[profile.release]
+debug = true
+
 [dependencies]
 uppercut = "0.4"
 mio = { version = "0.8.3", features = ["os-poll", "net"] }
