@@ -1,10 +1,10 @@
-extern crate log;
 extern crate env_logger;
-use log::debug;
+extern crate log;
 use chrono::{DateTime, Utc};
+use log::debug;
 
+use parsed::http::{parse_http_request, Header, Request, Response};
 use parsed::stream::ByteStream;
-use parsed::http::{parse_http_request, Request, Header, Response};
 
 fn handle(_: Request) -> Response {
     let now: DateTime<Utc> = Utc::now();
@@ -14,9 +14,18 @@ fn handle(_: Request) -> Response {
         code: 200,
         message: "OK".to_string(),
         headers: vec![
-            Header { name: "Content-Length".to_string(), value: "6".to_string(), },
-            Header { name: "Content-Type".to_string(), value: "text/plain; charset=utf-8".to_string(), },
-            Header { name: "Date".to_string(), value: now.to_rfc2822(), },
+            Header {
+                name: "Content-Length".to_string(),
+                value: "6".to_string(),
+            },
+            Header {
+                name: "Content-Type".to_string(),
+                value: "text/plain; charset=utf-8".to_string(),
+            },
+            Header {
+                name: "Date".to_string(),
+                value: now.to_rfc2822(),
+            },
         ],
         content: "hello\n".as_bytes().to_vec(),
     }

@@ -12,8 +12,9 @@ Intel Core i7 2.6 GHz (4-core) / 16 GB RAM
 
 ##### Cloud
 
-Client: 2 core / 8 GB RAM
-Server: 8 core / 32 GM RAM
+Client: 2-core / 8 GB RAM
+
+Server: 8-core / 32 GM RAM
 
 #### Setup
 

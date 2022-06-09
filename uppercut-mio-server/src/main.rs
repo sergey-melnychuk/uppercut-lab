@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use uppercut::api::Envelope;
-use uppercut::core::System;
 use uppercut::config::{Config, SchedulerConfig};
+use uppercut::core::System;
 use uppercut::pool::ThreadPool;
 
 mod protocol;
@@ -18,7 +18,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let cfg = Config::new(
         SchedulerConfig::with_total_threads(cores + 2),
-        Default::default());
+        Default::default(),
+    );
     let pool = ThreadPool::for_config(&cfg);
     let sys = System::new("server", "localhost", &cfg);
     let run = sys.run(&pool).unwrap();
